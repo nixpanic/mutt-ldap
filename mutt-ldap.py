@@ -149,6 +149,8 @@ def cache_lookup(query):
                 hit = True
                 addresses = cache_info['addresses']
 
+    # DEBUG
+    #print "Cache hit?: " + str(hit)
     return hit, addresses
 
 def cache_persist(query, addresses):
