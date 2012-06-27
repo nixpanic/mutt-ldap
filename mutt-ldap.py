@@ -38,6 +38,7 @@ import email.utils
 import itertools
 import os.path
 import ConfigParser
+import pickle
 
 import ldap
 import ldap.sasl
@@ -59,6 +60,10 @@ CONFIG.set('query', 'filter', '') # only match entries according to this filter
 CONFIG.set('query', 'search_fields', 'cn uid mail') # fields to wildcard search
 CONFIG.add_section('results')
 CONFIG.set('results', 'optional_column', '') # mutt can display one optional column
+CONFIG.add_section('cache')
+CONFIG.set('cache', 'enable', 'yes') # enable caching by default
+CONFIG.set('cache', 'path', '~/.mutt-ldap.cache') # cache results here
+#CONFIG.set('cache', 'longevity_days', '14') # TODO: cache results for 14 days by default
 CONFIG.read(os.path.expanduser('~/.mutt-ldap.rc'))
 
 def connect():
@@ -120,13 +125,55 @@ def format_entry(entry):
             # http://www.mutt.org/doc/manual/manual.html#toc4.5
             yield "\t".join(format_columns(m, data))
 
+def cache_filename(query):
+    # TODO: is the query filename safe?
+    return os.path.expanduser(CONFIG.get('cache', 'path')) + os.sep + query
+
+def settings_match(serialized_settings):
+    """Check to make sure the settings are the same for this cache"""
+    return pickle.dumps(CONFIG) == serialized_settings
+
+def cache_lookup(query):
+    hit = False
+    addresses = []
+    if CONFIG.get('cache', 'enable') == 'yes':
+        cache_file = cache_filename(query)
+        cache_dir = os.path.dirname(cache_file)
+        if not os.path.exists(cache_dir): os.mkdir(cache_dir)
+
+        # TODO: validate longevity setting
+
+        if os.path.exists(cache_file):
+            cache_info = pickle.loads(open(cache_file).read())
+            if settings_match(cache_info['settings']):
+                hit = True
+                addresses = cache_info['addresses']
+
+    return hit, addresses
+
+def cache_persist(query, addresses):
+    cache_info = {
+        'settings':  pickle.dumps(CONFIG),
+        'addresses': addresses
+        }
+    fd = open(cache_filename(query), 'w')
+    pickle.dump(cache_info, fd)
+    fd.close()
 
 if __name__ == '__main__':
     import sys
 
     query = unicode(' '.join(sys.argv[1:]), 'utf-8')
-    entries = search(query)
-    addresses = list(itertools.chain(
-            *[format_entry(e) for e in sorted(entries)]))
+
+    (cache_hit, addresses) = cache_lookup(query)
+
+    if not cache_hit:
+        entries = search(query)
+        addresses = list(itertools.chain(
+                *[format_entry(e) for e in sorted(entries)]))
+
+        # Cache results for next lookup
+        cache_persist(query, addresses)
+
     print '%d addresses found:' % len(addresses)
     print '\n'.join(addresses)
