@@ -54,6 +54,8 @@ CONFIG.add_section('auth')
 CONFIG.set('auth', 'user', '')
 CONFIG.set('auth', 'password', '')
 CONFIG.set('auth', 'gssapi', 'no')
+CONFIG.add_section('query')
+CONFIG.set('query', 'filter', '') # only match entries according to this filter
 CONFIG.read(os.path.expanduser('~/.mutt-ldap.rc'))
 
 def connect():
@@ -89,6 +91,9 @@ def search(query, connection=None):
         filterstr = '(|%s)' % (
             u' '.join([u'(%s=*%s%s)' % (field, query, post)
                        for field in ['cn', 'uid', 'mail']]))
+        filter = CONFIG.get('query', 'filter')
+        if filter:
+            filterstr = u'(&(%s)%s)' % (filter, filterstr)
         r = connection.search_s(
             CONFIG.get('connection', 'basedn'),
             ldap.SCOPE_SUBTREE,
