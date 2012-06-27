@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 #
 # Copyright (C) 2008-2011  W. Trevor King
+# Copyright (C) 2012       Wade Berrier
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +24,7 @@ to your :file:`.muttrc`::
   set query_command = "mutt-ldap.py '%s'"
 
 Search for addresses with `^t`, optionally after typing part of the
-name.  Configure your connection by creating :file:`~/.mutt-ldap.py`
+name.  Configure your connection by creating :file:`~/.mutt-ldap.rc`
 contaning something like::
 
   [connection]
@@ -101,7 +102,8 @@ def format_entry(entry):
     cn,data = entry
     if 'mail' in data:
         for m in data['mail']:
-            yield email.utils.formataddr((data['cn'][-1], m))
+            # Format: address\tname
+            yield "\t".join([m, data['cn'][-1]])
 
 
 if __name__ == '__main__':
