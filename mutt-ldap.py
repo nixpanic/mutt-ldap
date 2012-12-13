@@ -157,6 +157,10 @@ def cache_persist(query, addresses):
 if __name__ == '__main__':
     import sys
 
+    if len(sys.argv) < 2:
+        sys.stderr.write('%s: no search string given\n' % sys.argv[0])
+        sys.exit(1)
+
     query = unicode(' '.join(sys.argv[1:]), 'utf-8')
 
     (cache_hit, addresses) = cache_lookup(query)
